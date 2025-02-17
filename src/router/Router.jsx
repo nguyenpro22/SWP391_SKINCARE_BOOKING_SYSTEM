@@ -24,7 +24,7 @@ const Router = () => {
       </Route> */}
 
       <Route element={<AuthLayout />}>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Home />} />     
         <Route path="/account" element={<Account />} />
         <Route path="/account/change-password" element={<ChangePassword />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
