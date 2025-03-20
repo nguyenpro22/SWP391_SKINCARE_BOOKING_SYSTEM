@@ -1,9 +1,51 @@
 import React, { useEffect } from "react";
 import { FaCalendarAlt, FaHistory, FaInfo, FaUser } from "react-icons/fa";
-import { MdOutlinePassword } from "react-icons/md";
+import { RiBookletLine, RiCalendarScheduleLine } from "react-icons/ri";
+import { MdOutlineMedicalServices, MdOutlinePassword } from "react-icons/md";
 import { AiOutlineDashboard } from "react-icons/ai";
 import { toast } from "react-toastify";
-import { ROLE_MANAGER } from "./constants";
+import { ROLE_CUSTOMER, ROLE_MANAGER, ROLE_SKINTHERAPIST, ROLE_STAFF } from "./constants";
+import { GrTransaction } from "react-icons/gr";
+import { GoPerson } from "react-icons/go";
+import { IoSettingsOutline } from "react-icons/io5";
+import { Tag } from "antd";
+import {
+  ClockCircleOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined
+} from "@ant-design/icons";
+
+export const getStatusTag = (status) => {
+  let color = "";
+  let icon = null;
+
+  switch (status?.toLowerCase()) {
+    case "done":
+    case "checked-out":
+      color = "green";
+      icon = <CheckCircleOutlined />;
+      break;
+    case "in_progress":
+      color = "processing";
+      icon = <ClockCircleOutlined />;
+      break;
+    case "incomplete":
+    case "cancelled":
+      color = "red";
+      icon = <CloseCircleOutlined />;
+      break;
+    case "pending":
+    default:
+      color = "blue";
+      icon = <ClockCircleOutlined />;
+  }
+
+  return (
+    <Tag color={color} icon={icon}>
+      {status}
+    </Tag>
+  );
+};
 
 export function formatDateTimeVN(isoString) {
   const date = new Date(isoString);
@@ -21,74 +63,98 @@ export function formatDateTimeVN(isoString) {
   const formatter = new Intl.DateTimeFormat("vi-VN", options);
   const formattedParts = formatter.formatToParts(date);
 
-  const time = `${formattedParts.find((p) => p.type === "hour").value}:${
-    formattedParts.find((p) => p.type === "minute").value
-  }`;
+  const time = `${formattedParts.find((p) => p.type === "hour").value}:${formattedParts.find((p) => p.type === "minute").value
+    }`;
 
-  const dateStr = `${formattedParts.find((p) => p.type === "day").value}/${
-    formattedParts.find((p) => p.type === "month").value
-  }/${formattedParts.find((p) => p.type === "year").value}`;
+  const dateStr = `${formattedParts.find((p) => p.type === "day").value}/${formattedParts.find((p) => p.type === "month").value
+    }/${formattedParts.find((p) => p.type === "year").value}`;
 
   return `${time} | ${dateStr}`;
 }
 
 export const sliderMenu = [
+  // {
+  //   key: "dashboard",
+  //   icon: <AiOutlineDashboard />,
+  //   label: "Dashboard",
+  //   roles: [ROLE_MANAGER],
+  // },
   {
-    key: "dashboard",
-    icon: <AiOutlineDashboard />,
-    label: "Dashboard",
+    key: "manage-accounts",
+    icon: <GoPerson />,
+    label: "Accounts",
     roles: [ROLE_MANAGER],
   },
-  // {
-  //   key: "manage-user",
-  //   icon: <BiSolidUserAccount />,
-  //   label: "Người dùng",
-  //   roles: [ROLE_MANAGER],
-  // },
-  // {
-  //   key: "manage-room",
-  //   icon: <FaHotel />,
-  //   label: "Phòng trọ",
-  //   roles: [ROLE_MANAGER],
-  // },
-  // {
-  //   key: "manage-transaction",
-  //   icon: <MdOutlineRequestPage />,
-  //   label: "Giao dịch",
-  //   roles: [ROLE_MANAGER],
-  // },
+  {
+    key: "manage-services",
+    icon: <MdOutlineMedicalServices />,
+    label: "Services",
+    roles: [ROLE_MANAGER],
+  },
+  {
+    key: "manage-bookings",
+    icon: <RiBookletLine />,
+    label: "Bookings",
+    roles: [ROLE_MANAGER, ROLE_STAFF],
+  },
+  {
+    key: "manage-working-schedule",
+    icon: <RiCalendarScheduleLine />,
+    label: "Working Schedule",
+    roles: [ROLE_MANAGER, ROLE_STAFF],
+  },
+  {
+    key: "manage-transactions",
+    icon: <GrTransaction />,
+    label: "Transactions",
+    roles: [ROLE_MANAGER, ROLE_STAFF],
+  },
+  {
+    key: "settings",
+    icon: <IoSettingsOutline />,
+    label: "Settings",
+    roles: [ROLE_MANAGER],
+  },
+  //customer, skin therapist
+  {
+    key: "/account-history",
+    icon: <FaHistory />,
+    label: "History of Booking",
+    roles: [ROLE_CUSTOMER, ROLE_SKINTHERAPIST],
+  },
+  {
+    key: "/account-working-schedule",
+    icon: <FaCalendarAlt />,
+    label: "Working Schedule",
+    roles: [ROLE_SKINTHERAPIST],
+  }
+];
+
+export const sliderMenuHeader = [
+  {
+    key: "/account",
+    icon: <FaUser />,
+    label: "Profile",
+    roles: [ROLE_CUSTOMER, ROLE_SKINTHERAPIST],
+  },
+  {
+    key: "/account-history",
+    icon: <FaHistory />,
+    label: "History of Booking",
+    roles: [ROLE_CUSTOMER, ROLE_SKINTHERAPIST],
+  },
+  {
+    key: "/account-working-schedule",
+    icon: <FaCalendarAlt />,
+    label: "Working Schedule",
+    roles: [ROLE_SKINTHERAPIST],
+  }
 ];
 
 export const filterMenuByRole = (menu, role) => {
   if (!role) return [];
   return menu.filter((item) => item.roles.some((r) => r.name === role.name));
 };
-
-export const customer_sidebar_list = [
-  {
-    section: "Account information",
-    icon: <FaUser />,
-    isDropdown: true,
-    children: [
-      { label: "Profile", path: "/account", icon: <FaInfo /> },
-      {
-        label: "Change password",
-        path: "/account/change-password",
-        icon: <MdOutlinePassword />,
-      },
-    ],
-  },
-  {
-    label: "History of Skin Care",
-    path: "/account-history",
-    icon: <FaHistory />,
-  },
-  {
-    label: "Schedule Booked",
-    path: "/account-schedule",
-    icon: <FaCalendarAlt />,
-  },
-];
 
 export function useScrollToTop() {
   useEffect(() => {
@@ -100,7 +166,7 @@ export function useScrollToTop() {
 }
 
 export const handleActionNotSupport = () => {
-  toast.warning("Tính năng chưa hỗ trợ");
+  toast.warning("This feature is not supported yet!");
 };
 
 export const handleLowerCaseNonAccentVietnamese = (str) => {
@@ -118,11 +184,11 @@ export const handleLowerCaseNonAccentVietnamese = (str) => {
   return str;
 };
 
-export const generateFallbackAvatar = (fullname) => {
+export const generateFallbackAvatar = (fullName) => {
   const fallbackColor = "#FF9966";
 
   const initials = handleLowerCaseNonAccentVietnamese(
-    fullname?.charAt(0).toUpperCase() || ""
+    fullName?.charAt(0).toUpperCase() || ""
   );
 
   const svgString = `

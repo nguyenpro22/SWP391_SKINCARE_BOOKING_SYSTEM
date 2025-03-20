@@ -2,22 +2,31 @@ import React, { useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { userSelector } from "../../redux/selectors/selector";
 import AccountLayout from "../../components/layout/AccountLayout";
-import { Spin } from "antd";
-import { generateFallbackAvatar } from "../../utils/helpers";
+import { Select, Spin } from "antd";
+import { generateFallbackAvatar, handleActionNotSupport } from "../../utils/helpers";
+import { provideSkinTherapistInfo, updateAccounts } from "../../services/user.services";
+import { toast } from "react-toastify";
+import { ROLE_SKINTHERAPIST } from "../../utils/constants";
 
 const Account = () => {
   const dispatch = useDispatch();
   const userData = useSelector(userSelector);
+  console.log("userData: ", userData)
   const fileInputRef = useRef(null);
 
-  console.log("userData: ", userData);
-
   const [formData, setFormData] = useState({
-    fullname: userData?.user?.fullname || "",
+    fullName: userData?.user?.fullName || "",
     email: userData?.user?.email || "",
-    phone_number: userData?.user?.phone_number || "",
+    phone: userData?.user?.phone || "",
     address: userData?.user?.address || "",
     avatar_url: userData?.user?.avatar_url || "",
+    age: userData?.user?.age || "",
+    gender: userData?.user?.gender || "",
+
+    // 
+    description: userData?.user?.description || "",
+    experience: userData?.user?.experience || "",
+    specialization: userData?.user?.specialization || "",
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -40,47 +49,40 @@ const Account = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // try {
-    //   setIsLoading(true);
+    try {
+      setIsLoading(true);
 
-    //   let uploadedImageUrl = formData.avatar_url;
+      if (userData?.user?.roleName === ROLE_SKINTHERAPIST && (
+        formData.description !== '' ||
+        formData.experience !== '' ||
+        formData.specialization !== ''
+      )) {
+        const skinTherapistData = {
+          description: formData.description,
+          experience: formData.experience,
+          specialization: formData.specialization
+        };
 
-    //   if (selectedImage) {
-    //     uploadedImageUrl = await handleUploadToFirebase(
-    //       selectedImage,
-    //       "avatars_FO"
-    //     );
-    //   }
+        await provideSkinTherapistInfo(skinTherapistData);
+      }
 
-    //   const updateData = {
-    //     name: formData.fullname,
-    //     email: formData.email,
-    //     phone: formData.phone,
-    //     address: formData.address,
-    //     avatar_url: uploadedImageUrl,
-    //   };
+      // const updateData = {
+      //   fullName: formData.fullName,
+      //   age: parseInt(formData.age),
+      //   gender: formData.gender,
+      //   phone: formData.phone,
+      //   address: formData.address
+      // };
 
-    //   const response = await user.updateUserProfile(
-    //     updateData
-    //   );
+      // const response = await updateAccounts(updateData);
 
-    //   dispatch(
-    //     setUserProfile({
-    //       ...userData,
-    //       ...updateData,
-    //     })
-    //   );
-
-    //   if (previewUrl) {
-    //     URL.revokeObjectURL(previewUrl);
-    //   }
-
-    //   toast.success("Profile updated successfully!");
-    // } catch (error) {
-    //   toastError(error);
-    // } finally {
-    //   setIsLoading(false);
-    // }
+      toast.success("Profile updated successfully!");
+    } catch (error) {
+      toast.error("Failed to update profile");
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -100,11 +102,11 @@ const Account = () => {
                 <label className="text-gray-600">Full name</label>
                 <input
                   type="text"
-                  value={formData.fullname}
+                  value={formData.fullName}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      fullname: e.target.value,
+                      fullName: e.target.value,
                     })
                   }
                   className="col-span-2 p-2 border rounded"
@@ -134,15 +136,55 @@ const Account = () => {
                 <div className="col-span-2 flex items-center">
                   <input
                     type="text"
-                    value={formData.phone_number}
+                    value={formData.phone}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        phone_number: e.target.value,
+                        phone: e.target.value,
                       })
                     }
                     className="p-2 border rounded w-full"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 items-center mb-4">
+                <label className="text-gray-600">Age</label>
+                <div className="col-span-2 flex items-center">
+                  <input
+                    type="number"
+                    value={formData.age}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        age: e.target.value,
+                      })
+                    }
+                    className="p-2 border rounded w-full"
+                    min="0"
+                    max="120"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 items-center mb-4">
+                <label className="text-gray-600">Gender</label>
+                <div className="col-span-2 flex items-center">
+                  <Select
+                    style={{ width: '100%', height: "43px" }}
+                    placeholder="Select gender"
+                    value={formData.gender}
+                    onChange={(value) =>
+                      setFormData({
+                        ...formData,
+                        gender: value,
+                      })
+                    }
+                  >
+                    <Select.Option value="MALE">Male</Select.Option>
+                    <Select.Option value="FEMALE">Female</Select.Option>
+                    <Select.Option value="OTHER">Other</Select.Option>
+                  </Select>
                 </div>
               </div>
 
@@ -162,6 +204,61 @@ const Account = () => {
                   />
                 </div>
               </div>
+
+              {userData?.user?.roleName === ROLE_SKINTHERAPIST && (
+                <>
+                  <div className="grid grid-cols-3 items-center mt-6">
+                    <label className="text-gray-600">Description</label>
+                    <div className="col-span-2 flex items-center">
+                      <textarea
+                        value={formData.description}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            description: e.target.value,
+                          })
+                        }
+                        className="p-2 border rounded w-full"
+                        rows={4}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 items-center mt-6">
+                    <label className="text-gray-600">Experience</label>
+                    <div className="col-span-2 flex items-center">
+                      <input
+                        type="text"
+                        value={formData.experience}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            experience: e.target.value,
+                          })
+                        }
+                        className="p-2 border rounded w-full"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 items-center mt-6">
+                    <label className="text-gray-600">Specialization</label>
+                    <div className="col-span-2 flex items-center">
+                      <input
+                        type="text"
+                        value={formData.specialization}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            specialization: e.target.value,
+                          })
+                        }
+                        className="p-2 border rounded w-full"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="grid grid-cols-3 items-center">
                 <div className="col-start-2">
@@ -183,12 +280,12 @@ const Account = () => {
             <div className="text-center">
               <div
                 className="w-24 h-24 mx-auto mb-4 cursor-pointer"
-                onClick={handleImageClick}
+                onClick={handleActionNotSupport}
               >
                 <img
                   src={
                     userData?.user?.avatar_url ??
-                    generateFallbackAvatar(userData?.user?.fullname)
+                    generateFallbackAvatar(userData?.user?.fullName)
                   }
                   alt="avatar"
                   loading="lazy"
@@ -198,13 +295,13 @@ const Account = () => {
               <input
                 type="file"
                 ref={fileInputRef}
-                onChange={handleImageSelect}
+                onChange={handleActionNotSupport}
                 accept="image/jpeg,image/png"
                 className="hidden"
               />
               <button
                 type="button"
-                onClick={handleImageClick}
+                onClick={handleActionNotSupport}
                 className="border border-gray-300 px-4 py-2 rounded hover:bg-gray-50"
               >
                 Upload photo
