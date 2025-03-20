@@ -1,20 +1,23 @@
 import React, { useEffect, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { HiOutlineLogout } from "react-icons/hi";
 import { Avatar, Modal } from "antd";
+import { toast } from "react-toastify"; // Import toast từ react-toastify
 
 import logo from "../../../assets/images/logo.png";
 import LoginModal from "../../auth/LoginModal";
 import RegisterModal from "../../auth/RegisterModal";
 import { userSelector } from "../../../redux/selectors/selector";
 import { logoutUser } from "../../../redux/reducers/userReducer";
-import { generateFallbackAvatar } from "../../../utils/helpers";
+import { generateFallbackAvatar, sliderMenuHeader } from "../../../utils/helpers";
 import { getCurrentUserThunk } from "../../../redux/actions/userThunk";
 import {
   menuItemsHeader,
   ROLE_MANAGER,
   ROLE_CUSTOMER,
+  ROLE_STAFF,
+  ROLE_SKINTHERAPIST,
 } from "../../../utils/constants";
 import { FaUser } from "react-icons/fa";
 import { IoHome } from "react-icons/io5";
@@ -24,6 +27,7 @@ import { BiCalendar } from "react-icons/bi";
 
 function Header() {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const user = useSelector(userSelector);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -32,8 +36,8 @@ function Header() {
 
   useEffect(() => {
     const handleRelogin = async () => {
-      const token = await localStorage.getItem("accesstoken");
-      if (token !== "undefined") {
+      const refreshToken = await localStorage.getItem("refreshtoken");
+      if (refreshToken !== "undefined") {
         const getCurrentUserAction = await dispatch(getCurrentUserThunk());
         if (getCurrentUserThunk.rejected.match(getCurrentUserAction)) {
           console.log(
@@ -41,16 +45,17 @@ function Header() {
           );
         } else {
           const userRole = getCurrentUserAction?.payload?.role;
+          const currentPath = location.pathname;
 
           switch (userRole) {
             case ROLE_MANAGER:
-              navigate("/dashboard");
+              navigate("/manage-accounts");
               break;
-            case ROLE_CUSTOMER:
-              navigate("/");
+            case ROLE_STAFF:
+              navigate("/manage-bookings");
               break;
             default:
-              navigate("/");
+              navigate(currentPath);
           }
         }
       }
@@ -72,6 +77,21 @@ function Header() {
     dispatch(logoutUser());
   };
 
+  const handleScheduleClick = () => {
+    if (user?.user) {
+      navigate("/schedule");
+    } else {
+      toast.error("Please login first before booking");
+      showModal(true);
+    }
+  };
+
+  const userRole = user?.user?.roleName;
+
+  const filteredMenuItems = sliderMenuHeader.filter(item =>
+    item.roles.includes(userRole)
+  );
+
   return (
     <header className="header-home-page border-b border-gray-200">
       <div className="container">
@@ -90,8 +110,7 @@ function Header() {
                 key={index}
                 to={item.to}
                 className={({ isActive }) =>
-                  `menu-item font-semibold hover:underline ${
-                    isActive ? "text-blue-800 underline" : "text-black"
+                  `menu-item font-semibold hover:underline ${isActive ? "text-blue-800 underline" : "text-black"
                   }`
                 }
               >
@@ -101,13 +120,16 @@ function Header() {
           </div>
 
           <div className="flex flex-row gap-2">
-            <button
-              className="px-4 py-2 cursor-pointer post-button text-white rounded-lg flex items-center hover:bg-blue-600 hover:text-white hover:scale-105 hover:border-blue-500 transition-all duration-300"
-              onClick={() => navigate("/schedule")}
-            >
-              <BiCalendar className="mr-2" />
-              Schedule now
-            </button>
+            {user?.user?.roleName !== ROLE_SKINTHERAPIST
+              &&
+              <button
+                className="px-4 py-2 cursor-pointer post-button text-white rounded-lg flex items-center hover:bg-blue-600 hover:text-white hover:scale-105 hover:border-blue-500 transition-all duration-300"
+                onClick={handleScheduleClick}
+              >
+                <BiCalendar className="mr-2" />
+                Schedule now
+              </button>
+            }
 
             <div
               className="relative"
@@ -120,7 +142,7 @@ function Header() {
                     <Avatar
                       src={
                         user?.user?.avatar_url ??
-                        generateFallbackAvatar(user?.user?.fullname)
+                        generateFallbackAvatar(user?.user?.fullName)
                       }
                       alt={"avatar"}
                       style={{
@@ -131,7 +153,7 @@ function Header() {
                     />
 
                     <span className="auth-link hover:underline cursor-pointer truncate">
-                      {user?.user?.fullname}
+                      {user?.user?.fullName}
                     </span>
                   </>
                 ) : (
@@ -157,13 +179,16 @@ function Header() {
               {user?.user && isDropdownOpen && (
                 <div className="absolute right-0 w-56 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
                   <ul className="py-3">
-                    <li
-                      className="px-8 py-2 flex flex-row gap-2 items-center hover:bg-gray-100 hover:text-blue-800 cursor-pointer"
-                      onClick={() => navigate("/account")}
-                    >
-                      <FaUser className="text-sm" />
-                      Profile
-                    </li>                
+                    {filteredMenuItems.map(item => (
+                      <li
+                        key={item.key}
+                        className="px-8 py-2 flex flex-row gap-2 items-center hover:bg-gray-100 hover:text-blue-800 cursor-pointer"
+                        onClick={() => navigate(item.key)}
+                      >
+                        <span className="text-sm">{item.icon}</span>
+                        {item.label}
+                      </li>
+                    ))}
 
                     <li
                       className="px-8 py-2 flex flex-row gap-2 items-center hover:bg-gray-100 text-red-500 cursor-pointer"
