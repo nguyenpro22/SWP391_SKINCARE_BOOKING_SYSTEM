@@ -11,7 +11,6 @@ import { ROLE_SKINTHERAPIST } from "../../utils/constants";
 const Account = () => {
   const dispatch = useDispatch();
   const userData = useSelector(userSelector);
-  console.log("userData: ", userData)
   const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({

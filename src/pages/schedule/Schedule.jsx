@@ -294,7 +294,6 @@ const Schedule = () => {
                     ))}
                   </Select>
                 </Form.Item>
-
                 <Form.Item
                   label="Appointment Date"
                   name="date"
