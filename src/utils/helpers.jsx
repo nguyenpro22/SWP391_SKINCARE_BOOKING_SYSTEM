@@ -30,7 +30,7 @@ export const getStatusTag = (status) => {
       icon = <ClockCircleOutlined />;
       break;
     case "incomplete":
-    case "cancelled":
+    case "cancel":
       color = "red";
       icon = <CloseCircleOutlined />;
       break;
@@ -73,12 +73,12 @@ export function formatDateTimeVN(isoString) {
 }
 
 export const sliderMenu = [
-  // {
-  //   key: "dashboard",
-  //   icon: <AiOutlineDashboard />,
-  //   label: "Dashboard",
-  //   roles: [ROLE_MANAGER],
-  // },
+  {
+    key: "dashboard",
+    icon: <AiOutlineDashboard />,
+    label: "Dashboard",
+    roles: [ROLE_MANAGER],
+  },
   {
     key: "manage-accounts",
     icon: <GoPerson />,
