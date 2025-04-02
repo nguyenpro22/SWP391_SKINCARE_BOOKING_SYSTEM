@@ -1,24 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Form, Select, DatePicker, Radio, Input, Button, Typography, Space, Checkbox, Row, Col, Card, Switch } from 'antd';
+import { Form, DatePicker, Radio, Input, Button, Typography, Space, Checkbox, Row, Col, Card, Switch } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useScrollToTop } from '../../utils/helpers';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import { getAllSlots } from '../../services/workingSchedule.services';
 import { toast } from 'react-toastify';
-import { getAllServices } from '../../services/service.services';
-import { getAllSkinTherapists } from '../../services/user.services';
 import { useSelector } from 'react-redux';
 import { userSelector } from '../../redux/selectors/selector';
+import { BOOKING_TYPES } from '../../utils/constants';
+import { getAllSlots } from '../../services/workingSchedule.services';
+import { getAllServices } from '../../services/service.services';
 import { createBookings, getAllSkinTherapistByWorkingDateAndSlotId } from '../../services/booking.services';
-import { BOOKING_TYPE_LABELS, BOOKING_TYPES } from '../../utils/constants';
+import ConfirmationModal from '../../components/schedule/ConfirmationModal';
+import ServiceSelect from '../../components/schedule/ServiceSelect';
+import BookingTypeSelect from '../../components/schedule/BookingTypeSelect';
+import TimeSlotSelection from '../../components/schedule/TimeSlotSelection';
+import TherapistSelection from '../../components/schedule/TherapistSelection';
 
 dayjs.extend(customParseFormat);
 
 const { Title, Text } = Typography;
-const { Option } = Select;
 const { TextArea } = Input;
-
 
 const Schedule = () => {
   useScrollToTop();
@@ -41,7 +43,6 @@ const Schedule = () => {
     services: false,
     therapists: false
   });
-
 
   useEffect(() => {
     fetchTimeSlots();
@@ -160,6 +161,75 @@ const Schedule = () => {
     return current && current < dayjs().startOf('day');
   };
 
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
+    form.setFieldsValue({ timeSlot: undefined, therapist: undefined });
+    setSelectedSlot(null);
+    setTherapists([]);
+  };
+
+  const handleTimeSlotChange = (slotId) => {
+    setSelectedSlot(slotId);
+  };
+
+  const processBooking = async (values, noSlotNoTherapist) => {
+    if (!userData?.user) {
+      toast.error('Please login before booking');
+      return;
+    }
+
+    try {
+      let bookingData = {
+        serviceId: values.services,
+        ...(bookForSelf ? {} : {
+          patient: {
+            fullName: values.fullName,
+            gender: values.gender,
+            phone: values.phone,
+            email: values.email,
+          }
+        }),
+        bookingDate: values.date.format('YYYY-MM-DDTHH:mm:ss.SSSZ'),
+        type: bookingType,
+        bookForCustomerAccountOwner: bookForSelf
+      };
+
+      if (!noSlotNoTherapist) {
+        bookingData.bookingSlotCreateDTO = {
+          slotId: values.timeSlot,
+          ...(values.therapist ? { skinTherapistId: values.therapist } : {})
+        };
+      }
+
+      console.log("bookingData: ", bookingData)
+
+      const response = await createBookings(bookingData);
+
+      if (response?.paymentURL) {
+        window.location.href = response.paymentURL
+      }
+
+      toast.success('Booking successful!');
+      navigate('/account-history');
+
+    } catch (error) {
+      console.error('Booking error:', error);
+      toast.error(error.response?.data?.message || 'Booking failed');
+    }
+  };
+
+  const handleSubmit = (values) => {
+    if (!values.timeSlot && !values.therapist) {
+      ConfirmationModal.show('no-slot-no-therapist', () => processBooking(values, true));
+    }
+    else if (values.timeSlot && !values.therapist) {
+      ConfirmationModal.show('slot-no-therapist', () => processBooking(values, false));
+    }
+    else {
+      processBooking(values, false);
+    }
+  };
+
   const isSlotDisabled = (slot) => {
     if (!selectedDate) return false;
 
@@ -189,58 +259,6 @@ const Schedule = () => {
     return false;
   };
 
-  const handleDateChange = (date) => {
-    setSelectedDate(date);
-    form.setFieldsValue({ timeSlot: undefined, therapist: undefined });
-    setSelectedSlot(null);
-    setTherapists([]);
-  };
-
-  const handleTimeSlotChange = (slotId) => {
-    setSelectedSlot(slotId);
-  };
-
-  const handleCreateBooking = async (values) => {
-    if (!userData?.user) {
-      toast.error('Please login before booking');
-      return;
-    }
-
-    try {
-      const bookingData = {
-        serviceId: values.services,
-        ...(bookForSelf ? {} : {
-          patient: {
-            fullName: values.fullName,
-            gender: values.gender,
-            phone: values.phone,
-            email: values.email,
-          }
-        }),
-        bookingDate: values.date.format('YYYY-MM-DDTHH:mm:ss.SSSZ'),
-        type: bookingType,
-        bookForCustomerAccountOwner: bookForSelf,
-        bookingSlotCreateDTO: {
-          slotId: values.timeSlot,
-          skinTherapistId: values.therapist
-        }
-      };
-
-      const response = await createBookings(bookingData);
-
-      if (response?.paymentURL) {
-        window.location.href = response.paymentURL
-      }
-
-      toast.success('Booking successful!');
-      navigate('/account-history');
-
-    } catch (error) {
-      console.error('Booking error:', error);
-      toast.error(error.response?.data?.message || 'Booking failed');
-    }
-  };
-
   return (
     <div className="bg-gray-50 pb-20">
       <div
@@ -265,7 +283,7 @@ const Schedule = () => {
         <Form
           form={form}
           layout="vertical"
-          onFinish={handleCreateBooking}
+          onFinish={handleSubmit}
           initialValues={{ bookingType: BOOKING_TYPES.SINGLE_SLOT }}
         >
           <Card className="mb-8">
@@ -278,22 +296,10 @@ const Schedule = () => {
 
             <Row gutter={24} className='mt-4'>
               <Col xs={24} md={12}>
-                <Form.Item
-                  label="Select Services"
-                  name="services"
-                  rules={[{ required: true, message: 'Please select a service' }]}
-                >
-                  <Select
-                    loading={loading.services}
-                    placeholder="Select a service"
-                  >
-                    {services.map((service, index) => (
-                      <Option key={index} value={service.id}>
-                        {service.name}
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
+                <ServiceSelect 
+                  services={services} 
+                  loading={loading.services} 
+                />
 
                 <Form.Item
                   label="Appointment Date"
@@ -307,61 +313,25 @@ const Schedule = () => {
                   />
                 </Form.Item>
 
-                <Form.Item
-                  label="Booking Type"
-                  name="bookingType"
-                  rules={[{ required: true, message: 'Please select a booking type' }]}
-                >
-                  <Select onChange={handleBookingTypeChange}>
-                    <Option value={BOOKING_TYPES.SINGLE_SLOT}>{BOOKING_TYPE_LABELS[BOOKING_TYPES.SINGLE_SLOT]}</Option>
-                    <Option value={BOOKING_TYPES.MULTI_SLOT}>{BOOKING_TYPE_LABELS[BOOKING_TYPES.MULTI_SLOT]}</Option>
-                  </Select>
-                </Form.Item>
+                <BookingTypeSelect 
+                  onChange={handleBookingTypeChange} 
+                />
               </Col>
 
               <Col xs={24} md={12}>
-                <Form.Item
-                  label="Available Time Slots"
-                  name="timeSlot"
-                  rules={[{ required: true, message: 'Please select a time slot' }]}
-                >
-                  <Radio.Group
-                    className="w-full"
-                    loading={loading.slots ? 'true' : 'false'}
-                    onChange={(e) => handleTimeSlotChange(e.target.value)}
-                  >
-                    <Space wrap>
-                      {timeSlots.map((slot) => (
-                        <Radio.Button
-                          key={slot.id}
-                          value={slot.id}
-                          className="mb-2"
-                          disabled={isSlotDisabled(slot)}
-                        >
-                          {`Slot ${slot.slotNumber} (${slot.startTime} - ${slot.endTime})`}
-                        </Radio.Button>
-                      ))}
-                    </Space>
-                  </Radio.Group>
-                </Form.Item>
+                <TimeSlotSelection 
+                  timeSlots={timeSlots}
+                  loading={loading.slots}
+                  onChange={handleTimeSlotChange}
+                  isSlotDisabled={isSlotDisabled}
+                />
 
-                <Form.Item
-                  label="Select Skin Therapist"
-                  name="therapist"
-                  rules={[{ required: true, message: 'Please select a therapist' }]}
-                >
-                  <Select
-                    loading={loading.therapists}
-                    placeholder={selectedDate && selectedSlot ? "Select a skin therapist" : "Please select date and time slot first"}
-                    disabled={!selectedDate || !selectedSlot}
-                  >
-                    {therapists.map(therapist => (
-                      <Option key={therapist?.id} value={therapist?.id}>
-                        {therapist?.account?.fullName} - {therapist?.specialization.split(',')[0]}
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
+                <TherapistSelection 
+                  therapists={therapists}
+                  loading={loading.therapists}
+                  selectedDate={selectedDate}
+                  selectedSlot={selectedSlot}
+                />
               </Col>
             </Row>
           </Card>
